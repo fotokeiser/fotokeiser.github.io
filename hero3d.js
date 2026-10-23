@@ -1,6 +1,6 @@
 // Startseite: Ich als 3D-Relief (steht still), Porträts kreisen als Abzüge um mich.
 // Beim Scrollen fährt die Kamera heran, der Ring öffnet sich und fliegt an ihr vorbei.
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "./vendor/three.module.min.js";
 
 const hero = document.querySelector(".hero");
 const canvas = hero.querySelector(".hero__canvas");

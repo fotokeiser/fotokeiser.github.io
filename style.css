@@ -306,3 +306,15 @@ html:not(.js) .statement__text .w { opacity: 1; }
 }
 .card--wide .card__img { height: 52vh; aspect-ratio: 3/2; }
 @media (max-width: 720px) { .card--wide .card__img { height: 34vh; } }
+
+/* Impressum / Datenschutz */
+.legal { max-width: 760px; padding: clamp(120px, 18vh, 180px) var(--pad) 100px; }
+.legal__back { display: inline-block; margin-bottom: 40px; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--gruen); }
+.legal h1 { font-size: clamp(40px, 6vw, 80px); line-height: 1; font-weight: 600; letter-spacing: -.035em; margin-bottom: 40px; }
+.legal h2 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; margin: 40px 0 10px; }
+.legal p { color: var(--grau); margin-bottom: 14px; }
+.legal p:first-of-type, .legal h1 + p { color: var(--tinte); }
+.legal a:not(.legal__back) { color: var(--tinte); border-bottom: 1px solid var(--linie); }
+.legal a:not(.legal__back):hover { border-color: var(--gruen); }
+.legal__stand { margin-top: 48px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.legal-page .nav { mix-blend-mode: normal; background: linear-gradient(var(--papier) 50%, transparent); }
