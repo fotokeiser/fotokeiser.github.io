@@ -96,7 +96,26 @@
       return true;
     } catch (e) { return false; }
   }
-  const open = () => location.replace("app/" + location.hash);
+  // Erst weiter, wenn der Service Worker diese Seite wirklich steuert (Safari braucht dafür manchmal einen Moment)
+  async function controlled() {
+    if (navigator.serviceWorker.controller) return true;
+    await new Promise((resolve) => {
+      navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true });
+      setTimeout(resolve, 2500);
+    });
+    return !!navigator.serviceWorker.controller;
+  }
+  async function open() {
+    if (!(await controlled())) {
+      // einmal neu laden, danach ist der Service Worker aktiv
+      if (!sessionStorage.getItem("fk-reload")) {
+        sessionStorage.setItem("fk-reload", "1");
+        return location.reload();
+      }
+    }
+    sessionStorage.removeItem("fk-reload");
+    location.replace("app/" + location.hash);
+  }
 
   async function start() {
     if (!("serviceWorker" in navigator) || !window.crypto || !crypto.subtle || !window.indexedDB) {
@@ -109,6 +128,7 @@
     const saved = await dbGet();
     if (saved && (await works(saved))) return open();
     if (location.search.includes("neu")) say("Bitte das Passwort neu eingeben.");
+    if (location.search.includes("weiter")) say("Bitte das Passwort noch einmal eingeben.");
     input.focus();
   }
 
@@ -126,7 +146,8 @@
       }
       await dbPut(key);
       navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage("reset");
-      open();
+      say("Wird geöffnet …");
+      await open();
     } catch (err) {
       say("Das hat nicht geklappt. Bitte die Seite neu laden.", true);
       button.disabled = false;

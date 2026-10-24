@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>fotokeiser</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0d0c;color:#9c9a91;font-family:system-ui,sans-serif;font-size:15px}a{color:#62e08a}</style>
+</head>
+<body>
+<p id="m">Einen Moment …</p>
+<script>
+  // Aufruf unter /app/ ging am Service Worker vorbei: zurück zur Startseite, die öffnet die Seite neu.
+  // Zähler verhindert eine Endlosschleife.
+  (function () {
+    var n = +(sessionStorage.getItem("fk-404") || 0);
+    if (location.pathname.indexOf("/app/") === 0 && n < 2) {
+      sessionStorage.setItem("fk-404", n + 1);
+      location.replace("/?weiter" + location.hash);
+    } else {
+      sessionStorage.removeItem("fk-404");
+      document.getElementById("m").innerHTML = 'Seite nicht gefunden. <a href="/">Zur Startseite</a>';
+    }
+  })();
+</script>
+</body>
+</html>
