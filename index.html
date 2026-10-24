@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>fotokeiser · Torben Keiser Fotografie</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/brand/favicon-32.png">
+<link rel="apple-touch-icon" href="img/brand/apple-touch-icon.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root { --papier: #0d0d0c; --tinte: #eeede6; --grau: #9c9a91; --gruen: #62e08a; --linie: rgba(238,237,230,.16); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100svh; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 32px 20px; background: radial-gradient(ellipse 60% 50% at 50% 40%, #17221a 0%, var(--papier) 70%);
+    color: var(--tinte); font-family: "Space Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  .box { width: 100%; max-width: 380px; }
+  .logo { display: block; height: 28px; width: auto; margin-bottom: 44px; }
+  .label { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--gruen); margin-bottom: 14px; }
+  h1 { font-size: 34px; line-height: 1.05; font-weight: 600; letter-spacing: -.03em; margin-bottom: 28px; }
+  h1 em { font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-weight: 400; color: var(--gruen); }
+  form { display: flex; gap: 8px; }
+  input {
+    flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--tinte); background: rgba(238,237,230,.06);
+    border: 1px solid var(--linie); border-radius: 99px; padding: 14px 18px; outline: none;
+  }
+  input:focus { border-color: var(--gruen); }
+  button { font: inherit; font-weight: 600; font-size: 16px; border: 0; border-radius: 99px; padding: 14px 22px; background: var(--gruen); color: var(--papier); cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .msg { min-height: 22px; margin-top: 14px; font-size: 14px; color: var(--grau); }
+  .msg.err { color: #f0705f; }
+  footer { margin-top: 64px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: .06em; color: var(--grau); }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+  <main class="box">
+    <img class="logo" src="img/brand/fotokeiser-hell.png" alt="fotokeiser." width="485" height="94">
+    <p class="label">Vorschau</p>
+    <h1>Diese Seite ist <em>noch privat.</em></h1>
+    <form id="f" autocomplete="on">
+      <input id="pw" type="password" name="password" placeholder="Passwort" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+      <button id="go" type="submit">Öffnen</button>
+    </form>
+    <p class="msg" id="msg"></p>
+  </main>
+  <footer><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></footer>
+
+<script>
+(() => {
+  const form = document.getElementById("f");
+  const input = document.getElementById("pw");
+  const button = document.getElementById("go");
+  const msg = document.getElementById("msg");
+  const say = (text, err) => { msg.textContent = text; msg.className = "msg" + (err ? " err" : ""); };
+
+  const openDb = () => new Promise((resolve, reject) => {
+    const req = indexedDB.open("fotokeiser", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("keys");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const dbGet = async () => {
+    const db = await openDb();
+    return new Promise((resolve) => {
+      const req = db.transaction("keys").objectStore("keys").get("key");
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  };
+  const dbPut = async (value) => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("keys", "readwrite");
+      tx.objectStore("keys").put(value, "key");
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  };
+  const hex = (s) => new Uint8Array(s.match(/../g).map((h) => parseInt(h, 16)));
+
+  async function derive(password) {
+    const meta = await (await fetch("enc/meta.json", { cache: "no-store" })).json();
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: hex(meta.salt), iterations: meta.iterations, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
+    );
+  }
+  async function works(key) {
+    const buf = await (await fetch("enc/check.enc", { cache: "no-store" })).arrayBuffer();
+    try {
+      await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(buf, 0, 12) }, key, new Uint8Array(buf, 12));
+      return true;
+    } catch (e) { return false; }
+  }
+  const open = () => location.replace("app/" + location.hash);
+
+  async function start() {
+    if (!("serviceWorker" in navigator) || !window.crypto || !crypto.subtle || !window.indexedDB) {
+      say("Dieser Browser unterstützt die Vorschau leider nicht. Bitte Safari, Chrome oder Firefox in aktueller Version nutzen.", true);
+      form.hidden = true;
+      return;
+    }
+    await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    const saved = await dbGet();
+    if (saved && (await works(saved))) return open();
+    if (location.search.includes("neu")) say("Bitte das Passwort neu eingeben.");
+    input.focus();
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    button.disabled = true;
+    say("Einen Moment …");
+    try {
+      const key = await derive(input.value.trim().toLowerCase());
+      if (!(await works(key))) {
+        say("Das Passwort stimmt nicht.", true);
+        button.disabled = false;
+        input.select();
+        return;
+      }
+      await dbPut(key);
+      navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage("reset");
+      open();
+    } catch (err) {
+      say("Das hat nicht geklappt. Bitte die Seite neu laden.", true);
+      button.disabled = false;
+    }
+  });
+
+  start().catch(() => say("Das hat nicht geklappt. Bitte die Seite neu laden.", true));
+})();
+</script>
+</body>
+</html>
